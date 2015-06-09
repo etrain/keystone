@@ -300,4 +300,38 @@ object ImageUtils extends Logging {
     }
     out
   }
+
+  /**
+   * Combines multiple images across channels.
+   */
+  def combineChannels(in: Array[Image]): Image = {
+    require(in.forall(im => im.metadata.xDim == in(0).metadata.xDim && im.metadata.yDim == in(0).metadata.yDim))
+
+    val totalChannels = in.map(_.metadata.numChannels).reduce(_ + _)
+    val channelOffset = in.map(_.metadata.numChannels).scanLeft(0)(_ + _)
+
+    val out = ChannelMajorArrayVectorizedImage(
+      new Array[Double](in(0).metadata.xDim * in(0).metadata.yDim * totalChannels),
+      ImageMetadata(in(0).metadata.xDim, in(0).metadata.yDim, totalChannels))
+
+    var i = 0
+    while (i < in.length) {
+      var c = 0
+      while (c < in(i).metadata.numChannels) {
+        var x = 0
+        while (x < in(i).metadata.xDim) {
+          var y = 0
+          while (y < in(i).metadata.yDim) {
+            out.put(x, y, channelOffset(i)+c, in(i).get(x,y,c))
+            y+=1
+          }
+          x+=1
+        }
+        c+=1
+      }
+      i+=1
+    }
+
+    out
+  }
 }
