@@ -34,7 +34,7 @@ object FilterType extends Enumeration {
   val Max, MaxLocal, Mean, Median, Min, Var = Value
 }
 
-class Filter3D(filter: PlugInFilter, filterType: FilterType) extends Transformer[Image, Image] {
+class Filter3D(filter: PlugInFilter, filterType: FilterType, filterDims: (Int, Int, Int)) extends Transformer[Image, Image] {
 
   val filterMap = Map(
     FilterType.Max -> Filters3D.MAX,
@@ -47,7 +47,7 @@ class Filter3D(filter: PlugInFilter, filterType: FilterType) extends Transformer
 
   def apply(in: Image): Image = {
     val is = ImageJUtils.toImageStack(in)
-    val res = Filters3D.filter(is, filterMap(filterType), in.metadata.yDim, in.metadata.xDim, in.metadata.numChannels)
+    val res = Filters3D.filter(is, filterMap(filterType), filterDims._1, filterDims._2, filterDims._3)
     ImageJUtils.toImage(res)
   }
 }
