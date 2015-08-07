@@ -26,6 +26,9 @@ class Filter(filter: PlugInFilter) extends Transformer[Image, Image] {
   }
 }
 
+/**
+ * These two classes handle 3D filtering applied to an ImageStack - JImage's 3D image abstraction.
+ */
 object FilterType extends Enumeration {
   type FilterType = Value
   val Max, MaxLocal, Mean, Median, Min, Var = Value
@@ -44,8 +47,8 @@ class Filter3D(filter: PlugInFilter, filterType: FilterType) extends Transformer
 
   def apply(in: Image): Image = {
     val is = ImageJUtils.toImageStack(in)
-    Filters3D.filter(is, filterMap(filterType), in.metadata.yDim, in.metadata.xDim, in.metadata.numChannels)
-    ImageJUtils.toImage(is)
+    val res = Filters3D.filter(is, filterMap(filterType), in.metadata.yDim, in.metadata.xDim, in.metadata.numChannels)
+    ImageJUtils.toImage(res)
   }
 }
 
