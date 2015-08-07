@@ -29,7 +29,8 @@ parallelExecution in Test := false
     "com.github.fommil.netlib" % "all" % "1.1.2" pomOnly(),
     "edu.berkeley.cs.amplab" % "mlmatrix" % "0.1" from "https://s3-us-west-1.amazonaws.com/amp-ml-matrix/2.10/mlmatrix_2.10-0.1.jar",
     "com.github.scopt" %% "scopt" % "3.3.0",
-    "com.github.jai-imageio" % "jai-imageio-core" % "1.3.0"
+    "com.github.jai-imageio" % "jai-imageio-core" % "1.3.0",
+    "net.imagej" % "ij" % "1.49k"
   )
 }
 
