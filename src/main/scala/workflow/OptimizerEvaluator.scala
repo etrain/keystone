@@ -11,6 +11,7 @@ import pipelines.images.imagenet.ImageNetSiftLcsFV.ImageNetSiftLcsFVConfig
 import pipelines.images.voc.VOCSIFTFisher.SIFTFisherConfig
 import pipelines.speech.TimitPipeline.TimitConfig
 import scopt.OptionParser
+import workflow.WorkflowUtils.DaisyFisherConfig
 import sys.process._
 import utils.{LabeledImage, MultiLabeledImage, ObjectUtils}
 
@@ -210,6 +211,17 @@ object OptimizerEvaluator extends Logging {
         profileOptimizeAndTime(pipeGetter, data, data.map(_.image), config)
       }
 
+      case TestPipeline.VOCDaisy => {
+        val data = VOCLoader(
+          sc,
+          VOCDataPath(config.trainLocation, "VOCdevkit/VOC2007/JPEGImages/", Some(config.numPartitions)),
+          VOCLabelPath(config.trainLabels)).repartition(config.numPartitions)
+
+        val pipeGetter = WorkflowUtils.getVocDaisyPipeline(_ : RDD[MultiLabeledImage], DaisyFisherConfig(numPcaSamples = 10000, numGmmSamples = 10000))
+
+        profileOptimizeAndTime(pipeGetter, data, data.map(_.image), config)
+      }
+
     }
 
   }
@@ -218,7 +230,7 @@ object OptimizerEvaluator extends Logging {
 
   object TestPipeline extends Enumeration {
     type TestPipeline = Value
-    val Amazon, TIMIT, VOC, ImageNet = Value
+    val Amazon, TIMIT, VOC, ImageNet, VOCDaisy = Value
   }
 
   object CachingStrategy extends Enumeration {

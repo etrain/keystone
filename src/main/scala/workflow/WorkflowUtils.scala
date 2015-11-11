@@ -66,6 +66,70 @@ object WorkflowUtils {
     pipeline
   }
 
+  case class DaisyFisherConfig(
+      trainLocation: String = "",
+      testLocation: String = "",
+      labelPath: String = "",
+      numParts: Int = 496,
+      lambda: Double = 0.5,
+      descDim: Int = 80,
+      vocabSize: Int = 256,
+      scaleStep: Int = 0,
+      pcaFile: Option[String] = None,
+      gmmMeanFile: Option[String]= None,
+      gmmVarFile: Option[String] = None,
+      gmmWtsFile: Option[String] = None,
+      numPcaSamples: Int = 1e6.toInt,
+      numGmmSamples: Int = 1e6.toInt)
+
+  def getVocDaisyPipeline(trainData: RDD[MultiLabeledImage], conf: DaisyFisherConfig = DaisyFisherConfig()) = {
+
+    val labelGrabber = MultiLabelExtractor andThen
+      ClassLabelIndicatorsFromIntArrayLabels(VOCLoader.NUM_CLASSES)
+
+    val trainingLabels = labelGrabber(trainData)
+    val trainingData = MultiLabeledImageExtractor(trainData)
+    val numTrainingImages = trainingData.count().toInt
+
+    // Part 1: Scale and convert images to grayscale & Extract Sifts.
+    val daisyExtractor = PixelScaler andThen
+      GrayScaler andThen
+      new DaisyExtractor() andThen
+      BatchSignedHellingerMapper
+
+    // Part 1a: If necessary, perform PCA on samples of the SIFT features, or load a PCA matrix from disk.
+    // Part 2: Compute dimensionality-reduced PCA features.
+    val pcaFeaturizer = {
+      val pca = daisyExtractor andThen
+        ColumnSampler(conf.numPcaSamples / numTrainingImages) andThen
+        (ColumnPCAEstimator(conf.descDim), trainingData)
+
+      daisyExtractor andThen pca.fittedTransformer
+    }
+
+    // Part 2a: If necessary, compute a GMM based on the dimensionality-reduced features, or load from disk.
+    // Part 3: Compute Fisher Vectors and signed-square-root normalization.
+    val fisherFeaturizer = {
+      val fisherVector = pcaFeaturizer andThen
+        ColumnSampler(conf.numGmmSamples / numTrainingImages) andThen
+        (GMMFisherVectorEstimator(conf.vocabSize), trainingData)
+      pcaFeaturizer andThen fisherVector.fittedTransformer
+    } andThen
+      FloatToDouble andThen
+      MatrixVectorizer andThen
+      NormalizeRows andThen
+      SignedHellingerMapper andThen
+      NormalizeRows
+
+    // Part 4: Fit a linear model to the data.
+    val pipeline = fisherFeaturizer andThen
+      (new BlockLeastSquaresEstimator(4096, 1, conf.lambda, Some(2 * conf.descDim * conf.vocabSize)),
+        trainingData,
+        trainingLabels)
+
+    pipeline
+  }
+
   def getAmazonPipeline(trainData: RDD[(Int, String)]) = {
     val trainingData = trainData.map(_._2)
     val trainingLabels = trainData.map(_._1)

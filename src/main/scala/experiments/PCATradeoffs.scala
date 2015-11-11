@@ -84,8 +84,7 @@ object PCATradeoffs extends Logging{
       t <- 1 to trials
     ) {
       //Generate the data
-      val data = convert(DenseMatrix.rand(n, d), Float)
-      val datad = convert(data, Double)
+      val datad = DenseMatrix.rand(n, d)
 
       //Get a PCA object
       val dims = math.ceil(k*d).toInt
