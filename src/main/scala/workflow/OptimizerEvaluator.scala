@@ -211,6 +211,17 @@ object OptimizerEvaluator extends Logging {
         profileOptimizeAndTime(pipeGetter, data, data.map(_.image), config)
       }
 
+      case TestPipeline.VOCLocal => {
+        val data = VOCLoader(
+          sc,
+          VOCDataPath(config.trainLocation, "VOCdevkit/VOC2007/JPEGImages/", Some(config.numPartitions)),
+          VOCLabelPath(config.trainLabels)).repartition(config.numPartitions)
+
+        val pipeGetter = WorkflowUtils.getVocLocalPipeline(_ : RDD[MultiLabeledImage], SIFTFisherConfig(numPcaSamples = 10000, numGmmSamples = 10000))
+
+        profileOptimizeAndTime(pipeGetter, data, data.map(_.image), config)
+      }
+
       case TestPipeline.VOCDaisy => {
         val data = VOCLoader(
           sc,
@@ -230,7 +241,7 @@ object OptimizerEvaluator extends Logging {
 
   object TestPipeline extends Enumeration {
     type TestPipeline = Value
-    val Amazon, TIMIT, VOC, ImageNet, VOCDaisy = Value
+    val Amazon, TIMIT, VOC, ImageNet, VOCDaisy, VOCLocal = Value
   }
 
   object CachingStrategy extends Enumeration {

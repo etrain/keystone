@@ -66,6 +66,53 @@ object WorkflowUtils {
     pipeline
   }
 
+  def getVocLocalPipeline(trainData: RDD[MultiLabeledImage], conf: SIFTFisherConfig = SIFTFisherConfig()) = {
+
+    val labelGrabber = MultiLabelExtractor andThen
+      ClassLabelIndicatorsFromIntArrayLabels(VOCLoader.NUM_CLASSES)
+
+    val trainingLabels = labelGrabber(trainData)
+    val trainingData = MultiLabeledImageExtractor(trainData)
+    val numTrainingImages = trainingData.count().toInt
+
+    // Part 1: Scale and convert images to grayscale & Extract Sifts.
+    val siftExtractor = PixelScaler andThen
+      GrayScaler andThen
+      new SIFTExtractor(scaleStep = conf.scaleStep)
+
+    // Part 1a: If necessary, perform PCA on samples of the SIFT features, or load a PCA matrix from disk.
+    // Part 2: Compute dimensionality-reduced PCA features.
+    val pcaFeaturizer = {
+      val pca = siftExtractor andThen
+        ColumnSampler(conf.numPcaSamples / numTrainingImages) andThen
+        (ColumnPCAEstimator(conf.descDim), trainingData)
+
+      siftExtractor andThen pca.fittedTransformer
+    }
+
+    // Part 2a: If necessary, compute a GMM based on the dimensionality-reduced features, or load from disk.
+    // Part 3: Compute Fisher Vectors and signed-square-root normalization.
+    val fisherFeaturizer = {
+      val fisherVector = pcaFeaturizer andThen
+        ColumnSampler(conf.numGmmSamples / numTrainingImages) andThen
+        (GMMFisherVectorEstimator(conf.vocabSize), trainingData)
+      pcaFeaturizer andThen fisherVector.fittedTransformer
+    } andThen
+      FloatToDouble andThen
+      MatrixVectorizer andThen
+      NormalizeRows andThen
+      SignedHellingerMapper andThen
+      NormalizeRows
+
+    // Part 4: Fit a linear model to the data.
+    val pipeline = fisherFeaturizer andThen
+      (new LocalLeastSquaresEstimator(conf.lambda),
+        trainingData,
+        trainingLabels)
+
+    pipeline
+  }
+
   case class DaisyFisherConfig(
       trainLocation: String = "",
       testLocation: String = "",
@@ -94,8 +141,7 @@ object WorkflowUtils {
     // Part 1: Scale and convert images to grayscale & Extract Sifts.
     val daisyExtractor = PixelScaler andThen
       GrayScaler andThen
-      new DaisyExtractor() andThen
-      BatchSignedHellingerMapper
+      new DaisyExtractor()
 
     // Part 1a: If necessary, perform PCA on samples of the SIFT features, or load a PCA matrix from disk.
     // Part 2: Compute dimensionality-reduced PCA features.
@@ -123,7 +169,7 @@ object WorkflowUtils {
 
     // Part 4: Fit a linear model to the data.
     val pipeline = fisherFeaturizer andThen
-      (new BlockLeastSquaresEstimator(4096, 1, conf.lambda, Some(2 * conf.descDim * conf.vocabSize)),
+      (new LocalLeastSquaresEstimator(conf.lambda),
         trainingData,
         trainingLabels)
 

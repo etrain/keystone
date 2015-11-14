@@ -183,8 +183,6 @@ object PipelineRuntimeEstimator extends Logging {
   }
 
   //Get node weights
-  //BUG IS HERE OR IN THE USE OF THIS VARIABLE>
-  //WHEN WE ADD A WEIGHT TO A NODE WE ARE *NOT* increasing its calls. just the calls of its children.
   def getNodeWeights(x: Pipeline[_,_]): Int => Int = {
     x.nodes.zipWithIndex.map { n =>
       n._1 match {
