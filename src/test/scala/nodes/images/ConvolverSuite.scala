@@ -136,4 +136,31 @@ class ConvolverSuite extends FunSuite with LocalSparkContext with Logging {
     assert(testImg.equals(chans(0)), "Convolved images should match.")
 
   }
+
+  test("convolutions with stride > 1") {
+    val im = TestUtils.loadTestImage("images/gantrycrane.png")
+
+    val convSize = 3
+    val imgChannels = 3
+    val imgWidth = im.metadata.yDim
+    val imgHeight = im.metadata.xDim
+
+    var conv1 = DenseVector.zeros[Double](convSize * convSize * imgChannels)
+    conv1(4) = 1.0
+
+    var conv2 = DenseVector.zeros[Double](convSize * convSize * imgChannels)
+    conv2(4) = 0.33
+    conv2(4+9) = 0.33
+    conv2(4+9+9) = 0.33
+
+    var convBank = MatrixUtils.rowsToMatrix(Array(conv1, conv2))
+
+    val convolver = new Convolver(convBank, imgWidth, imgHeight, imgChannels, patchStride = 1)
+
+    val poolImage = convolver(im)
+
+    logInfo(s"Image: ${poolImage.toArray.mkString(",")}")
+    logInfo(s"Image Dimensions ${poolImage.metadata.xDim} ${poolImage.metadata.yDim} ${poolImage.metadata.numChannels}")
+
+  }
 }

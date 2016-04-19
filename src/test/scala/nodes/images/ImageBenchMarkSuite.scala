@@ -13,12 +13,12 @@ class ImageBenchMarkSuite extends FunSuite with Logging {
 
   case class TestParam(name: String, size: (Int, Int, Int), kernelSize: Int, numKernels: Int, poolSize: Int, poolStride: Int)
   val tests = Array(
-    TestParam("Cifar100", (32,32,3), 6, 100, 13, 14),
-    TestParam("Cifar1000", (32,32,3), 6, 1000, 13, 14),
-    TestParam("Cifar10000", (32,32,3), 6, 10000, 13, 14),
-    TestParam("ImageNet", (256,256,3), 6, 100, (256-5)/2, (256-5)/2),
-    TestParam("SolarFlares", (256,256,12), 6, 100, (256-5)/12, (256-5)/12),
-    TestParam("ConvolvedSolarFlares", (251,251,100), 6, 100, 251/12, 251/12)
+   // TestParam("Cifar100", (32,32,3), 6, 100, 13, 14),
+    //TestParam("Cifar1000", (32,32,3), 6, 1000, 13, 14),
+    //TestParam("Cifar10000", (32,32,3), 6, 10000, 13, 14),
+    TestParam("ImageNet", (256,256,3), 5, 1024, (256-5+1)/2, (256-5+1)/2)
+    //TestParam("SolarFlares", (256,256,12), 6, 100, (256-5)/12, (256-5)/12),
+    //TestParam("ConvolvedSolarFlares", (251,251,100), 6, 100, 251/12, 251/12)
     //Todo (sparks) Figure out a good way to "uncomment" this via a config parameter when we want bigger tests.
     //TestParam("SolarFlares2", (256,256,12), 5, 1024, (256-4)/12, (256-4)/12)
 
