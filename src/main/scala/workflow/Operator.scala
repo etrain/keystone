@@ -9,8 +9,9 @@ import org.apache.spark.rdd.RDD
  */
 private[workflow] sealed trait Operator {
   def label: String = {
-    val className = getClass.getSimpleName
-    if (className endsWith "$") className.dropRight(1) else className
+    //val className = getClass.getSimpleName
+    //if (className endsWith "$") className.dropRight(1) else className
+    this.toString
   }
 
   def execute(deps: Seq[Expression]): Expression
