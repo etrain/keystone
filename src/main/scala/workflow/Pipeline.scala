@@ -143,7 +143,7 @@ object Pipeline {
         (nextGraph, sinks :+ branchSinkDep)
     }
 
-    // Finally, we add a gather transformer with all of the branches' endpoints as dependencies,
+    // Next, we add a gather transformer with all of the branches' endpoints as dependencies,
     // and add a new sink on the gather transformer.
     val (graphWithGather, gatherNode) = graphWithAllBranches.addNode(new GatherTransformerOperator[B], branchSinks)
     val (newGraph, sink) = graphWithGather.addSink(gatherNode)
