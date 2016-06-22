@@ -16,6 +16,7 @@ abstract class PipelineResult[T] private[workflow] (
   ) {
 
   private lazy val result: T = executor.execute(sink).get.asInstanceOf[T]
+
   final def get(): T = result
 
 }

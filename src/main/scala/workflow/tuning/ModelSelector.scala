@@ -43,7 +43,7 @@ case class ModelSelector[T : ClassTag, L](evaluator: (RDD[T], RDD[L]) => Double)
   */
 case class SelectedModel(index: Int) extends TransformerOperator {
   override private[workflow] def singleTransform(dataDependencies: Seq[DatumExpression]): Any = {
-    dataDependencies.drop(index).head
+    dataDependencies.drop(index).head.get
   }
 
   override private[workflow] def batchTransform(dataDependencies: Seq[DatasetExpression]): RDD[_] = {

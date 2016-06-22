@@ -34,7 +34,6 @@ object PipelineTuning {
     //Initialize to an empty graph with one source.
     val dataSetGraph = PipelineDataset(data).executor.graph
     val dataSetGraphNoSink = dataSetGraph.removeSink(dataSetGraph.sinks.head)
-    println(s"Dataset size: ${dataSetGraph.nodes.size}")
     val dataSource = dataSetGraph.nodes.head
 
     // We fold the branches together one by one, updating the graph and the overall execution state
@@ -59,9 +58,12 @@ object PipelineTuning {
         (nextGraph, sinks :+ branchSinkDep)
     }
 
+    val (graphWithDataBranchesAndLabels, labelNode) = graphWithDataBranches.addNode(new DatasetOperator(labels), Seq())
+    val modelSelectorDependencies = dataBranchSinks.flatMap(x => Seq(x, labelNode))
+
     // Next add a gather transformer with all of the branches' endpoints as dependencies,
     // and add a new sink on the model selector.
-    val (graphWithSelector, selectorNode) = graphWithDataBranches.addNode(new ModelSelector(evaluator), dataBranchSinks)
+    val (graphWithSelector, selectorNode) = graphWithDataBranchesAndLabels.addNode(new ModelSelector(evaluator), modelSelectorDependencies)
     //val (dataGraph, dataSink) = graphWithSelector.addSink(selectorNode)
 
     //Next, we create one set of branches for each of these pipelines which uses the validation dataset.
@@ -102,7 +104,7 @@ object PipelineTuning {
     //val res = newGraph.setDependencies(newSelector(delegatingTransformerNode),
     //  delegatingGraph.getDependencies(delegatingTransformerNode).map(getNewDelegators) :+ selectorNode)
 
-    val res = newGraph.setDependencies(delegatingTransformerNode, newGraph.getDependencies(delegatingTransformerNode) :+ newSelectorNodes(selectorNode))
+    val res = newGraph.setDependencies(delegatingTransformerNode, newSelectorNodes(selectorNode) +: newGraph.getDependencies(delegatingTransformerNode))
 
     // Finally, construct & return the new "tuning" pipeline
     val executor = new GraphExecutor(res)

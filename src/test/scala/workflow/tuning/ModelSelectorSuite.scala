@@ -5,7 +5,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.scalatest.FunSuite
 import pipelines.Logging
-import workflow.{PipelineContext, Transformer}
+import workflow.{DatumExpression, PipelineDatum, PipelineContext, Transformer}
 
 class ModelSelectorSuite extends FunSuite with PipelineContext with Logging {
   val first = Transformer[Int, Int](_ => 0)
@@ -24,41 +24,40 @@ class ModelSelectorSuite extends FunSuite with PipelineContext with Logging {
     val labels = data.map(_ => 0)
 
     val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
-    print(pipeline.executor.graph.toDOTString)
 
-    assert(pipeline(-1) === 0)
+    assert(pipeline(-1).get === 0)
   }
 
-//  test("Select Second") {
-//    sc = new SparkContext("local", "test")
-//
-//    val data = sc.parallelize(Seq(-1, -1, -1, -1))
-//    val labels = data.map(_ => 1)
-//
-//    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
-//
-//    assert(pipeline(-1) === 1)
-//  }
-//
-//  test("Select Third") {
-//    sc = new SparkContext("local", "test")
-//
-//    val data = sc.parallelize(Seq(-1, -1, -1, -1))
-//    val labels = data.map(_ => 2)
-//
-//    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
-//
-//    assert(pipeline(-1) === 2)
-//  }
-//
-//  test("Select Fourth") {
-//    sc = new SparkContext("local", "test")
-//
-//    val data = sc.parallelize(Seq(-1, -1, -1, -1))
-//    val labels = data.map(_ => 3)
-//
-//    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
-//
-//    assert(pipeline(-1) === 3)
-//  }
+  test("Select Second") {
+    sc = new SparkContext("local", "test")
+
+    val data = sc.parallelize(Seq(-1, -1, -1, -1))
+    val labels = data.map(_ => 1)
+
+    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
+
+    assert(pipeline(-1).get === 1)
+  }
+
+  test("Select Third") {
+    sc = new SparkContext("local", "test")
+
+    val data = sc.parallelize(Seq(-1, -1, -1, -1))
+    val labels = data.map(_ => 2)
+
+    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
+
+    assert(pipeline(-1).get === 2)
+  }
+
+  test("Select Fourth") {
+    sc = new SparkContext("local", "test")
+
+    val data = sc.parallelize(Seq(-1, -1, -1, -1))
+    val labels = data.map(_ => 3)
+
+    val pipeline = PipelineTuning.tune(totalChoices, data, labels, evaluator)
+
+    assert(pipeline(-1).get === 3)
+  }
 }
