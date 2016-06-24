@@ -63,7 +63,8 @@ object PipelineTuning {
 
     // Next add a gather transformer with all of the branches' endpoints as dependencies,
     // and add a new sink on the model selector.
-    val (graphWithSelector, selectorNode) = graphWithDataBranchesAndLabels.addNode(new ModelSelector(evaluator), modelSelectorDependencies)
+    val (graphWithSelector, selectorNode) =
+      graphWithDataBranchesAndLabels.addNode(new ModelSelector(evaluator), modelSelectorDependencies)
     //val (dataGraph, dataSink) = graphWithSelector.addSink(selectorNode)
 
     //Next, we create one set of branches for each of these pipelines which uses the validation dataset.
@@ -93,8 +94,11 @@ object PipelineTuning {
 
     // Next add a gather transformer with all of the branches' endpoints as dependencies,
     // and add a new sink on the delegating transformer.
-    val (graphWithDelegatingTransformer, delegatingTransformerNode) = graphWithEmptyBranches.addNode(new DelegatingOperator(), emptyBranchSinks)
-    val (delegatingGraph, delegatingSink) = graphWithDelegatingTransformer.addSink(delegatingTransformerNode)
+    val (graphWithDelegatingTransformer, delegatingTransformerNode) =
+      graphWithEmptyBranches.addNode(new DelegatingOperator(), emptyBranchSinks)
+
+    val (delegatingGraph, delegatingSink) =
+      graphWithDelegatingTransformer.addSink(delegatingTransformerNode)
 
     //Add fit dependency between delegating transformer and model selector.
     val (newGraph, newSelectorSources, newSelectorNodes, newSelectorSinks) = delegatingGraph.addGraph(graphWithSelector)
@@ -104,10 +108,35 @@ object PipelineTuning {
     //val res = newGraph.setDependencies(newSelector(delegatingTransformerNode),
     //  delegatingGraph.getDependencies(delegatingTransformerNode).map(getNewDelegators) :+ selectorNode)
 
-    val res = newGraph.setDependencies(delegatingTransformerNode, newSelectorNodes(selectorNode) +: newGraph.getDependencies(delegatingTransformerNode))
+    val res = newGraph.setDependencies(
+      delegatingTransformerNode,
+      newSelectorNodes(selectorNode) +: newGraph.getDependencies(delegatingTransformerNode))
 
     // Finally, construct & return the new "tuning" pipeline
     val executor = new GraphExecutor(res)
     new Pipeline[A, B](executor, source, delegatingSink)
+  }
+
+
+  /**
+    * This method eagerly picks among the best pipelines it can find. It treats these pipelines independently
+    * and doesn't take into account repeated work, etc.
+    * @param pipes
+    * @param data
+    * @param labels
+    * @param evaluator
+    * @tparam A
+    * @tparam B
+    * @tparam L
+    * @return
+    */
+  def sequential[A, B, L: ClassTag](
+      pipes: Seq[Pipeline[A,B]],
+      data: RDD[A],
+      labels: RDD[L],
+      evaluator: (RDD[B], RDD[L]) => Double): Pipeline[A,B] = {
+
+      pipes.maxBy(p => evaluator(p(data).get, labels))
+
   }
 }

@@ -61,6 +61,10 @@ case class SeqParameter(override val name: String, params: Seq[Parameter[Any]]) 
   }
 }
 
+object EmptyParameter {
+  def apply(): IntParameter = IntParameter("empty", 0, 1)
+}
+
 object SearcherUtils {
   val rand = new Random(42)
 
