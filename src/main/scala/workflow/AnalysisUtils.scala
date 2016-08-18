@@ -119,4 +119,52 @@ private[workflow] object AnalysisUtils {
       }
     }
   }
+
+
+  /**
+    * Helper to remove a node from a graph.
+    * @param g Graph.
+    * @param x Node to remove.
+    * @return
+    */
+  def removeNode(g: Graph, x: GraphId): Graph = {
+    //println(s"Removing ${x}")
+    x match {
+      case n: NodeId => g.removeNode(n)
+      case so: SourceId => g.removeSource(so)
+      case si: SinkId => g.removeSink(si)
+    }
+  }
+
+  def getAllNodes(graph: Graph): Set[GraphId] = {
+    (graph.dependencies.keys ++
+    graph.sources.toList ++
+    graph.sinks.toList).toSet
+  }
+
+  /**
+    * Return an iterator of all graph linearizations.
+    * Importantly we don't actually want to materialize every single one since this is factorial in the number of nodes.
+    *
+    * @param graph The graph to linearize.
+    * @return An iterator of valid topological orderings of the graph.
+    */
+  def allLinearizations(graph: Graph): Seq[Seq[GraphId]] = {
+
+    //If the graph is empty, return an empty sequence.
+    val allNodes: Set[GraphId] = getAllNodes(graph)
+    if(allNodes.isEmpty) {
+      Seq(Seq[GraphId]())
+    } else {
+
+      val nodesWithDeps: Set[GraphId] = (graph.sinkDependencies.keys ++ graph.dependencies.filterNot(_._2.isEmpty).keys).toSet
+      val initSet = (allNodes diff nodesWithDeps).toSeq
+
+      initSet.flatMap(i => {
+        val restLins = allLinearizations(removeNode(graph, i))
+        restLins.map(lin => i +: lin)
+      })
+    }
+
+  }
 }

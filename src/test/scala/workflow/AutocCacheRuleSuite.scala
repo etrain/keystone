@@ -71,6 +71,22 @@ class AutoCacheRuleSuite extends FunSuite with PipelineContext with Logging {
     NodeId(5) -> Profile(20, 100, 0)
   )
 
+  val profiles2 = Map[NodeId, Profile](
+    NodeId(0) -> Profile(10, Long.MaxValue, 0),
+    NodeId(1) -> Profile(10, 50, 0),
+    NodeId(2) -> Profile(30, 200, 0),
+    NodeId(3) -> Profile(20, 1000, 0),
+    NodeId(4) -> Profile(20, 1000, 0),
+    NodeId(5) -> Profile(20, 100, 0),
+    NodeId(6) -> Profile(10, 1000, 0),
+    NodeId(7) -> Profile(10, 50, 0),
+    NodeId(8) -> Profile(30, 200, 0),
+    NodeId(9) -> Profile(20, 1000, 0),
+    NodeId(10) -> Profile(20, 1000, 0),
+    NodeId(11) -> Profile(20, 100, 0),
+    NodeId(12) -> Profile(20, 100, 0)
+  )
+
   test("End to end aggressive AutoCacheRule") {
     sc = new SparkContext("local", "test")
     val optimizer = new Optimizer {
@@ -190,5 +206,19 @@ class AutoCacheRuleSuite extends FunSuite with PipelineContext with Logging {
     }.toSet
 
     assert(cachedTransformers === Set(TransformerPlus(2), TransformerPlus(5)))
+  }
+
+  test("Does the OPT hit rate estimator work?") {
+    sc = new SparkContext("local", "test")
+
+    val newprofs = profiles2.map(x => (x._1.asInstanceOf[GraphId], x._2))
+    logInfo(s"Cache Size,optRes,lruRes")
+    for (size <- Seq(100,500,600,700,800,900,1000,5000,10000)) {
+      val optRes = CacheUtils.calculatePipelineHitRate(new GraphExecutor(getPlan(sc)), size, newprofs, OPTCache.apply)
+      val lruRes = CacheUtils.calculatePipelineHitRate(new GraphExecutor(getPlan(sc)), size, newprofs, LRUCache.apply)
+      logInfo(s"$size,$optRes,$lruRes")
+    }
+
+
   }
 }

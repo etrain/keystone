@@ -1,11 +1,10 @@
 package nodes.stats
 
 import breeze.linalg._
-import org.scalatest.FunSuite
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{Matchers, FunSuite}
 import pipelines.Logging
 
-class RandomSignNodeSuite extends FunSuite with Logging with ShouldMatchers {
+class RandomSignNodeSuite extends FunSuite with Logging with Matchers {
 
   test("RandomSignNode") {
     val signs = DenseVector(1.0, -1.0, 1.0)

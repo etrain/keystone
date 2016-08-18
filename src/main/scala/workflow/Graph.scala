@@ -228,7 +228,13 @@ private[workflow] case class Graph(
     require(sources.contains(source), "Source being removed must exist")
 
     val newSources = sources - source
-    copy(sources = newSources)
+
+    //Remove any trace of the source from the dependencies.
+    val newSinkDependencies = sinkDependencies.filterNot(_._2 == source)
+    val newDependencies = dependencies.mapValues(_ diff Seq(source))//.filterNot(_._2.isEmpty)
+
+
+    copy(sources = newSources, sinkDependencies = newSinkDependencies, dependencies = newDependencies)
   }
 
   /**
@@ -242,9 +248,11 @@ private[workflow] case class Graph(
   def removeNode(node: NodeId): Graph = {
     require(nodes.contains(node), "Node being removed must exist")
 
+    val newSinkDependencies = sinkDependencies.filterNot(_._2 == node)
     val newOperators = operators - node
-    val newDependencies = dependencies - node
-    copy(operators = newOperators, dependencies = newDependencies)
+    val newDependencies = (dependencies - node).mapValues(_ diff Seq(node))//.filterNot(_._2.isEmpty)
+
+    copy(sinkDependencies = newSinkDependencies, operators = newOperators, dependencies = newDependencies)
   }
 
   /**

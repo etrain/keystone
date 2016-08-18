@@ -4,9 +4,10 @@ import org.scalatest.FunSuite
 import pipelines.Logging
 
 class AnalysisUtilsSuite extends FunSuite with PipelineContext with Logging {
+
   val graph = Graph(
     sources = Set(SourceId(1), SourceId(2), SourceId(3)),
-    operators = Map(),
+    operators = (0 to 18).map(x => (NodeId(x), Identity[Int]())).toMap,
     dependencies = Map(
       NodeId(0) -> Seq(),
       NodeId(1) -> Seq(SourceId(1), SourceId(2)),
@@ -407,5 +408,22 @@ class AnalysisUtilsSuite extends FunSuite with PipelineContext with Logging {
     )
 
     assert(linearization === AnalysisUtils.linearize(graph))
+  }
+
+  test("allLinearizations") {
+    val tinyGraph = Graph(
+      sources = Set(SourceId(0), SourceId(1), SourceId(2)),
+      operators = (0 to 3).map(x => (NodeId(x), Identity[Int]())).toMap,
+      dependencies = Map(
+        NodeId(0) -> Seq(SourceId(0)),
+        NodeId(1) -> Seq(SourceId(1)),
+        NodeId(2) -> Seq(NodeId(0), NodeId(1)),
+        NodeId(3) -> Seq(NodeId(2), SourceId(2))),
+      sinkDependencies = Map(SinkId(0) -> NodeId(3)))
+
+
+    val res = AnalysisUtils.allLinearizations(tinyGraph)
+    logInfo(res.toSeq.mkString(";"))
+    logInfo(s"Size: ${res.length}")
   }
 }
