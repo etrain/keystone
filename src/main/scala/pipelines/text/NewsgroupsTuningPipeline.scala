@@ -11,7 +11,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import pipelines.Logging
 import scopt.OptionParser
-import workflow.Pipeline
+import workflow.{OPTCache, CacheUtils, AutoCacheRule, Pipeline}
 import workflow.tuning._
 
 object NewsgroupsTuningPipeline extends Logging {
@@ -25,23 +25,23 @@ object NewsgroupsTuningPipeline extends Logging {
     // Build the classifier estimator
     logInfo("Training classifier")
 
-    val pipeSpace = TransformerP("Trim", {x: Int => Trim}, EmptyParameter()) andThen
-      TransformerP("LowerCase", {x: Int => LowerCase()}, EmptyParameter()) andThen
-      TransformerP("Tokenizer", {x: Int => Tokenizer()}, EmptyParameter()) andThen
+    val pipeSpace = TransformerP("Trim", {x: Unit => Trim}, EmptyParameter()) andThen
+      TransformerP("LowerCase", {x: Unit => LowerCase()}, EmptyParameter()) andThen
+      TransformerP("Tokenizer", {x: Unit => Tokenizer()}, EmptyParameter()) andThen
       TransformerP("NGramsFeaturizer",
         {x:Int => NGramsFeaturizer(1 to x)},
         IntParameter("maxGrams", conf.nGramsMin, conf.nGramsMax)) andThen
-      TransformerP("TermFrequency", {x:Int => TermFrequency(y => 1)}, EmptyParameter()) andThen
+      TransformerP("TermFrequency", {x:Unit => TermFrequency(y => 1)}, EmptyParameter()) andThen
       EstimatorP("CommonSparseFeatures",
         {x:Int => CommonSparseFeatures[Seq[String]](x)},
         IntParameter("commonSparseFeatures", conf.commonFeaturesMin, conf.commonFeaturesMax),
         trainData.data) andThen
       LabelEstimatorP("NaiveBayesEstimator",
-        {x:Int => NaiveBayesEstimator[SparseVector[Double]](numClasses)},
+        {x:Unit => NaiveBayesEstimator[SparseVector[Double]](numClasses)},
         EmptyParameter(),
         trainData.data,
         trainData.labels) andThen
-      TransformerP("MaxClassifier", {x:Int => MaxClassifier}, EmptyParameter())
+      TransformerP("MaxClassifier", {x:Unit => MaxClassifier}, EmptyParameter())
 
     val pipes = (0 until conf.numConfigs).map(x => pipeSpace.sample[String, Int]())
 
@@ -52,6 +52,9 @@ object NewsgroupsTuningPipeline extends Logging {
       case "sequential" => PipelineTuning.sequential(pipes, trainData.data, trainData.labels, evaluator)
     }
 
+    logInfo("Beginning profiling")
+    val hitRates = new AutoCacheRule(null).getCacheHitRates(predictor)
+    logInfo(s"$hitRates")
     // Evaluate the classifier
     logInfo("Evaluating classifier")
 

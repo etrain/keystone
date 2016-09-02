@@ -635,6 +635,27 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
       }
     }
   }
+
+  def getProfiles[A,B](pipe: Pipeline[A,B], config: GreedyCache): Map[NodeId, Profile] = {
+    val plan = pipe.executor.graph
+    val linearization = AnalysisUtils.linearize(plan)
+
+    val descendantsOfSources = getDescendantsOfSources(plan)
+
+    profileNodes(plan, linearization, plan.nodes -- descendantsOfSources, config.partitionScales, config.numProfileTrials)
+  }
+
+  def getCacheHitRates[A,B](pipe: Pipeline[A,B], sizesMb: Seq[Int] = Seq(10,50,100,500,1000,5000,10000,50000,100000)): Map[(String,Int),Long] = {
+    val cacheStrats: Map[String,(Int, Map[GraphId,Long]) => CacheCalculator] = Map("lru" -> LRUCache.apply, "opt" -> OPTCache.apply)
+
+    val profiles = getProfiles(pipe, GreedyCache())
+    val profs2 = profiles.map(x => (x._1.asInstanceOf[GraphId], x._2))
+    val z = for(
+      s <- sizesMb;
+      c <- cacheStrats.keys.toSeq
+    ) yield ((c,s), CacheUtils.calculatePipelineHitRate(pipe.executor, s, profs2, cacheStrats(c)))
+    z.toMap
+  }
 }
 
 object AutoCacheRule {

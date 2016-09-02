@@ -35,6 +35,11 @@ case class ContinuousParameter(
   }
 }
 
+case class EmptyParameter(override val name: String = "empty") extends Parameter[Unit](name) {
+  def sample() = (name, Unit)
+  def range(n: Int) = Seq(sample())
+}
+
 case class IntParameter(override val name: String, min: Int, max: Int) extends Parameter[Int](name) {
   def sample() = (name, (min + SearcherUtils.rand.nextInt(max-min)))
   def range(n: Int) = (min to max by math.max(1, ((max-min)/(n.toDouble-1)).round.toInt)).map(x => (name, x))
@@ -59,10 +64,6 @@ case class SeqParameter(override val name: String, params: Seq[Parameter[Any]]) 
     val ns = math.pow(n, 1.0/params.length).toInt
     SearcherUtils.cartesian(params.map(_.range(ns).toList).toList).map(p => (name, p))
   }
-}
-
-object EmptyParameter {
-  def apply(): IntParameter = IntParameter("empty", 0, 1)
 }
 
 object SearcherUtils {
