@@ -28,7 +28,8 @@ libraryDependencies ++= Seq(
   "org.scalanlp" % "breeze_2.10" % "0.11.2",
   "com.google.guava" % "guava" % "14.0.1",
   "com.github.fommil.netlib" % "all" % "1.1.2" pomOnly(),
-  "com.github.scopt" %% "scopt" % "3.3.0"
+  "com.github.scopt" %% "scopt" % "3.3.0",
+  "io.argonaut" %% "argonaut" % "6.0.4"
 )
 
 {

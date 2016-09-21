@@ -128,7 +128,7 @@ object CacheUtils extends Logging {
             case x: NodeId => Seq(x)
             case _ => Seq[NodeId]()
           })
-          (0 until graphWeights(nd)).flatMap(_ => deps)
+          (0 until graphWeigh ts(nd)).flatMap(_ => deps)
         }
         case s: SourceId => Seq[NodeId]()
         case si: SinkId => Seq[NodeId]()
