@@ -8,7 +8,7 @@ import Argonaut._
 
 object DAGWriter {
 
-  case class DAG(vertices: Map[String,Profile], edges: List[(String,String)], sinks: Seq[String])
+  case class DAG(vertices: Map[String,Profile], edges: List[(String,String)], sinks: List[String])
   implicit def ProfileCodecJson = casecodec3(Profile.apply, Profile.unapply)("ns","rddMem","driverMem")
   implicit def DAGCodecJson = casecodec3(DAG.apply, DAG.unapply)("vertices","edges","sinks")
 
@@ -22,7 +22,7 @@ object DAGWriter {
 
     val vertices = prof.map(s => (s._1.toString, s._2))
 
-    DAG(vertices, edges.map(s => (s._1.toString, s._2.toString)).toList, graph.sinks.toSeq.sorted.map(_.toString))
+    DAG(vertices, edges.map(s => (s._1.toString, s._2.toString)).toList, graph.sinks.toList.sortBy(_.id).map(_.toString))
   }
 
   def toJson[A,B](pipe: Pipeline[A,B], prof: Map[Int, Profile]): String = {
