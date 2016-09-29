@@ -9,7 +9,7 @@ import org.tensorflow.example.feature._
 case class MultiLabeledFeatureVector(labels: Array[Int], features: DenseVector[Float])
 
 object Youtube8MVideoLoader {
-  val NUM_CLASSES = 4800
+  val NUM_CLASSES = 4816
 
   def makeMultiLabeledFeatureVector(in: Example): MultiLabeledFeatureVector = {
     val labels = in.getFeatures.feature("labels").getInt64List.value.map(_.toInt).toArray
