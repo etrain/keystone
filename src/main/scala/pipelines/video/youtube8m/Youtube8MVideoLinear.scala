@@ -51,7 +51,7 @@ object Youtube8MVideoLinear extends Serializable with Logging {
 
     val predictions = predictor(testX)
 
-    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, VOCLoader.NUM_CLASSES)
+    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
     logInfo(s"TEST APs are: ${map.toArray.mkString(",")}")
     logInfo(s"TEST MAP is: ${mean(map)}")
 
