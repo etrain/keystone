@@ -1,7 +1,3 @@
-import AssemblyKeys._
-
-assemblySettings
-
 name := "keystoneml"
 
 version := "0.3.0-SNAPSHOT"
@@ -12,7 +8,7 @@ licenses := Seq("Apache 2.0" -> url("https://raw.githubusercontent.com/amplab/ke
 
 homepage := Some(url("http://keystone-ml.org"))
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.10.6"
 
 parallelExecution in Test := false
 
@@ -41,7 +37,7 @@ libraryDependencies ++= Seq(
 }
 
 {
-  val defaultSparkVersion = "1.5.2"
+  val defaultSparkVersion = "1.6.1"
   val sparkVersion =
     scala.util.Properties.envOrElse("SPARK_VERSION", defaultSparkVersion)
   val excludeHadoop = ExclusionRule(organization = "org.apache.hadoop")
@@ -123,4 +119,12 @@ pomExtra := (
       <url>https://github.com/tomerk</url>
     </developer>
   </developers>
+)
+
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
+
+assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename("com.google.protobuf.**" -> "shadeproto.@1").inAll
 )
