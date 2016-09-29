@@ -8,11 +8,20 @@ import workflow.PipelineContext
 import org.tensorflow.example.feature._
 
 class TFRecordLoaderSuite extends FunSuite with PipelineContext {
-  test("load a sample of imagenet data") {
-    sc = new SparkContext("local", "test")
-    val dataPath = TestUtils.getTestResourceFileName("youtube8m.sample.tfrecord")
+//  test("load a sample of tensorflow frame data") {
+//    sc = new SparkContext("local", "test")
+//    val dataPath = TestUtils.getTestResourceFileName("youtube8m.sample.tfrecord")
+//
+//    val features = TFRecordLoader(sc, dataPath, 4, SequenceExample.parseFrom)
+//
+//    println(features.take(5).mkString(","))
+//  }
 
-    val features = TFRecordLoader(sc, dataPath, 4, SequenceExample.parseFrom)
+  test("load a sample of tensorflow frame data") {
+    sc = new SparkContext("local", "test")
+    val dataPath = TestUtils.getTestResourceFileName("youtube8m.video.sample.tfrecord")
+
+    val features = TFRecordLoader(sc, dataPath, 4, Example.parseFrom)
 
     println(features.take(5).mkString(","))
   }

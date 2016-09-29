@@ -6,7 +6,7 @@ import utils.TestUtils
 import workflow.PipelineContext
 
 class Youtube8MFramesLoaderSuite extends FunSuite with PipelineContext {
-  test("load a sample of imagenet data") {
+  test("load a sample of youtube frames data") {
     sc = new SparkContext("local", "test")
     val dataPath = TestUtils.getTestResourceFileName("youtube8m.sample.tfrecord")
 

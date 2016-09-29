@@ -125,6 +125,3 @@ PB.targets in Compile := Seq(
   scalapb.gen() -> (sourceManaged in Compile).value
 )
 
-assemblyShadeRules in assembly := Seq(
-  ShadeRule.rename("com.google.protobuf.**" -> "shadeproto.@1").inAll
-)
