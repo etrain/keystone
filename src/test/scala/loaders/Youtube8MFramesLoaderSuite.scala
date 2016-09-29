@@ -5,14 +5,12 @@ import org.apache.spark.SparkContext
 import utils.TestUtils
 import workflow.PipelineContext
 
-import org.tensorflow.example.feature._
-
-class TFRecordLoaderSuite extends FunSuite with PipelineContext {
+class Youtube8MFramesLoaderSuite extends FunSuite with PipelineContext {
   test("load a sample of imagenet data") {
     sc = new SparkContext("local", "test")
     val dataPath = TestUtils.getTestResourceFileName("youtube8m.sample.tfrecord")
 
-    val features = TFRecordLoader(sc, dataPath, 4, SequenceExample.parseFrom)
+    val features = Youtube8MFramesLoader(sc, dataPath, 4)
 
     println(features.take(5).mkString(","))
   }

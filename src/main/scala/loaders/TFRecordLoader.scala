@@ -10,6 +10,7 @@ import org.apache.spark.rdd.RDD
 import org.tensorflow.example.feature._
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
   * This class loads data from TFRecord Files as described here:
@@ -17,16 +18,17 @@ import scala.collection.mutable
   */
 
 object TFRecordLoader {
+
   /**
-    * Given a block, generate an Iterator of SequenceExamples.
+    * Given a block, returns an Iterator[T]
  *
-    * @param x
+    * @param x Data: a PortableDataStrem.
+    * @param f Function from Array[Byte] to return type (e.g. SequenceExample.parsefrom).
+    * @tparam T Typically T will be a protobuf enabled class.
     * @return
     */
-
-
-  private def generateBlocks(x: PortableDataStream): Iterator[SequenceExample] = {
-    val ret = mutable.Queue[SequenceExample]()
+  private def generateBlocks[T : ClassTag](x: PortableDataStream, f: Array[Byte] => T): Iterator[T] = {
+    val ret = mutable.Queue[T]()
 
     val bis = new ByteArrayInputStream(x.toArray())
     val dis = new LittleEndianDataInputStream(bis)
@@ -35,11 +37,12 @@ object TFRecordLoader {
       //println(s"Record size: $recSize")
       dis.readInt() //Read the CRC
 
+
       val bytes = new Array[Byte](recSize.toInt)
       dis.readFully(bytes) //Populate bytes.
       dis.readInt() //Read another CRC
 
-      val parsed = SequenceExample.parseFrom(bytes)
+      val parsed = f(bytes)
 
       ret.enqueue(parsed)
     }
@@ -58,7 +61,7 @@ object TFRecordLoader {
    * @param numPartitions Number of partitions to load into
    * @return  An RDD containing the loaded data.
    */
-  def apply(sc: SparkContext, dataLocation: String, numPartitions: Int): RDD[SequenceExample] = {
-    sc.binaryFiles(dataLocation, numPartitions).flatMap{ case (file, blockStream) => generateBlocks(blockStream)}
+  def apply[T : ClassTag](sc: SparkContext, dataLocation: String, numPartitions: Int, f: Array[Byte] => T): RDD[T] = {
+    sc.binaryFiles(dataLocation, numPartitions).flatMap{ case (file, blockStream) => generateBlocks(blockStream, f)}
   }
 }
