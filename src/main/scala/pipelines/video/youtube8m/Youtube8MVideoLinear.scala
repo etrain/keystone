@@ -37,6 +37,7 @@ object Youtube8MVideoLinear extends Serializable with Logging {
 
     val trainData = Youtube8MVideoLoader(sc, conf.trainLocation, conf.numParts).cache()
     val (trainX, trainy) = getLabelMatrices(trainData)
+    logInfo(s"Size of trainX: ${trainX.count}, testy: ${trainy.count}")
 
     val predictor = new LinearMapEstimator(Some(conf.lambda)).fit(trainX, trainy)
 
@@ -44,9 +45,7 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     // Now featurize and apply the model to test data.
     val testData = Youtube8MVideoLoader(sc, conf.testLocation, conf.numParts).cache()
     val (testX, testy) = getLabelMatrices(testData)
-
-
-    logInfo("Test Cached RDD has: " + testData.count)
+    logInfo(s"Size of testX: ${testX.count}, testy: ${testy.count}")
 
     val testActuals = testData.map(_.labels).cache()
 
