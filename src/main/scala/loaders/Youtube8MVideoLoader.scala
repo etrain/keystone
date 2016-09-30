@@ -20,6 +20,6 @@ object Youtube8MVideoLoader {
   }
 
   def apply(sc: SparkContext, filename: String, numParts: Int): RDD[MultiLabeledFeatureVector] = {
-    TFRecordLoader(sc, filename, numParts, Example.parseFrom).map(makeMultiLabeledFeatureVector)
+    TFRecordLoader(sc, filename, numParts, Example.parseFrom).map(makeMultiLabeledFeatureVector).repartition(numParts)
   }
 }
