@@ -47,7 +47,7 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     val testActuals = testData.map(_.labels).cache()
 
     val lambdas: Seq[Option[Double]] = Seq(None, Some(1e-4), Some(1e-2), Some(1e2), Some(1e4), Some(1e-3), Some(1e3), Some(1e-1), Some(1e1))
-    val params = for (l <- lambdas) yield {
+    val params = for (l <- lambdas.reverse) yield {
       val predictor = new LinearMapEstimator(l).fit(trainX, trainy)
 
       val predictions = predictor(testX)
