@@ -39,23 +39,30 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     val (trainX, trainy) = getLabelMatrices(trainData)
     logInfo(s"Size of trainX: ${trainX.count}, testy: ${trainy.count}")
 
-    val predictor = new LinearMapEstimator(Some(conf.lambda)).fit(trainX, trainy)
-
 
     // Now featurize and apply the model to test data.
     val testData = Youtube8MVideoLoader(sc, conf.testLocation, conf.numParts).cache()
     val (testX, testy) = getLabelMatrices(testData)
     logInfo(s"Size of testX: ${testX.count}, testy: ${testy.count}")
-
     val testActuals = testData.map(_.labels).cache()
 
-    val predictions = predictor(testX)
+    val lambdas: Seq[Option[Double]] = Seq(None, Some(1e-4), Some(1e-2), Some(1e2), Some(1e4), Some(1e-3), Some(1e3), Some(1e-1), Some(1e1))
+    val params = for (l <- lambdas) yield {
+      val predictor = new LinearMapEstimator(l).fit(trainX, trainy)
 
-    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
-    logInfo(s"TEST APs are: ${map.toArray.mkString(",")}")
-    logInfo(s"TEST MAP is: ${mean(map)}")
+      val predictions = predictor(testX)
 
-    predictor.toPipeline
+      val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
+      logInfo(s"TEST APs $l are: ${map.toArray.mkString(",")}")
+      logInfo(s"TEST MAP $l is: ${mean(map)}")
+
+      (mean(map), l, predictor)
+
+    }
+
+    val bestPredictor = params.maxBy(_._1)._3
+
+    bestPredictor.toPipeline
   }
 
   case class LinearConfig(
