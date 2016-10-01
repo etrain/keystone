@@ -31,6 +31,18 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     (X, y)
   }
 
+  def hitAtK(actuals: RDD[Array[Int]], preds: RDD[DenseVector[Double]], k: Int = 1): Double = {
+    val hitCount = preds.zip(actuals).map { case (pred, actual) => {
+      val topPreds = pred.toArray.zipWithIndex.sortBy(_._1).takeRight(k).map(_._2)
+
+      val hits = topPreds.toSet.intersect(actual.toSet)
+      hits.size
+    }}.filter(_ > 0).count()
+
+    println(s"$hitCount, ${actuals.count}")
+    hitCount.toDouble/actuals.count()
+  }
+
   def run(sc: SparkContext, conf: LinearConfig): Pipeline[DenseVector[Double], DenseVector[Double]] =  {
 
 
@@ -46,30 +58,25 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     logInfo(s"Size of testX: ${testX.count}, testy: ${testy.count}")
     val testActuals = testData.map(_.labels).cache()
 
-    val lambdas: Seq[Option[Double]] = Seq(None, Some(1e-4), Some(1e-2), Some(1e2), Some(1e4), Some(1e-3))
-    val params = for (l <- lambdas.reverse) yield {
-      val predictor = new LinearMapEstimator(l).fit(trainX, trainy)
 
-      val predictions = predictor(testX)
+    val predictor = new LinearMapEstimator(conf.lambda).fit(trainX, trainy)
 
-      val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
-      logInfo(s"TEST APs $l are: ${map.toArray.mkString(",")}")
-      logInfo(s"TEST MAP $l is: ${mean(map)}")
+    val predictions = predictor(testX)
 
-      (mean(map), l, predictor)
+    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
+    val hit1 = hitAtK(testActuals, predictions, 1)
+    logInfo(s"TEST APs ${conf.lambda} are: ${map.toArray.mkString(",")}")
+    logInfo(s"TEST MAP ${conf.lambda} is: ${mean(map)}")
+    logInfo(s"Hit@1: $hit1")
 
-    }
-
-    val bestPredictor = params.maxBy(_._1)._3
-
-    bestPredictor.toPipeline
+    predictor.toPipeline
   }
 
   case class LinearConfig(
     trainLocation: String = "",
     testLocation: String = "",
     numParts: Int = 496,
-    lambda: Double = 0.5)
+    lambda: Option[Double] = None)
 
   def parse(args: Array[String]): LinearConfig = new OptionParser[LinearConfig](appName) {
     head(appName, "0.1")
@@ -77,7 +84,7 @@ object Youtube8MVideoLinear extends Serializable with Logging {
     opt[String]("trainLocation") required() action { (x,c) => c.copy(trainLocation=x) }
     opt[String]("testLocation") required() action { (x,c) => c.copy(testLocation=x) }
     opt[Int]("numParts") action { (x,c) => c.copy(numParts=x) }
-    opt[Double]("lambda") action { (x,c) => c.copy(lambda=x) }
+    opt[Double]("lambda") action { (x,c) => c.copy(lambda=Some(x)) }
   }.parse(args, LinearConfig()).get
 
   /**
