@@ -73,14 +73,14 @@ object Youtube8MVideoRandomFeatures extends Serializable with Logging {
           // TODO: Once https://github.com/scalanlp/breeze/issues/398 is released,
           // use a RandBasis for cauchy
           CosineRandomFeatures(
-            Youtube8MVideoLoader.NUM_CLASSES,
+            Youtube8MVideoLoader.NUM_FEATURES,
             numCosineFeatures,
             conf.gamma,
             new CauchyDistribution(0, 1),
             randomSource.uniform).toPipeline
         } else {
           CosineRandomFeatures(
-            Youtube8MVideoLoader.NUM_CLASSES,
+            Youtube8MVideoLoader.NUM_FEATURES,
             numCosineFeatures,
             conf.gamma,
             randomSource.gaussian,
