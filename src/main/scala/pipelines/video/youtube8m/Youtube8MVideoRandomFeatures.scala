@@ -56,7 +56,7 @@ object Youtube8MVideoRandomFeatures extends Serializable with Logging {
     val random = new java.util.Random(seed)
     val randomSource = new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(random.nextLong())))
 
-    val numCosineFeatures = 4096
+    val numCosineFeatures = conf.numCosineFeatures
     val numCosineBatches = conf.numCosines
     val colsPerBatch = numCosineFeatures + 1
 
@@ -114,6 +114,7 @@ object Youtube8MVideoRandomFeatures extends Serializable with Logging {
     numCosines: Int = 50,
     gamma: Double = 0.05555,
     numEpochs: Int = 5,
+    numCosineFeatures: Int = 4096,
     checkpointDir: Option[String] = None)
 
   def parse(args: Array[String]): RandomFeaturesConfig = new OptionParser[RandomFeaturesConfig](appName) {
@@ -126,6 +127,7 @@ object Youtube8MVideoRandomFeatures extends Serializable with Logging {
     opt("rfType")(scopt.Read.reads(Distributions withName _)) action { (x,c) => c.copy(rfType = x)}
     opt[Int]("numCosines") action { (x,c) => c.copy(numCosines=x) }
     opt[Int]("numEpochs") action { (x,c) => c.copy(numEpochs=x) }
+    opt[Int]("numCosineFeatures") action { (x,c) => c.copy(numCosineFeatures=x) }
     opt[Double]("gamma") action { (x,c) => c.copy(gamma=x) }
     opt[String]("checkpointDir") action { (x,c) => c.copy(checkpointDir=Some(x)) }
   }.parse(args, RandomFeaturesConfig()).get
