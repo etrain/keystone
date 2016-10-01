@@ -39,7 +39,6 @@ object Youtube8MVideoLinear extends Serializable with Logging {
       hits.size
     }}.filter(_ > 0).count()
 
-    println(s"$hitCount, ${actuals.count}")
     hitCount.toDouble/actuals.count()
   }
 
@@ -65,9 +64,11 @@ object Youtube8MVideoLinear extends Serializable with Logging {
 
     val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
     val hit1 = hitAtK(testActuals, predictions, 1)
+    val hit5 = hitAtK(testActuals, predictions, 5)
     logInfo(s"TEST APs ${conf.lambda} are: ${map.toArray.mkString(",")}")
     logInfo(s"TEST MAP ${conf.lambda} is: ${mean(map)}")
     logInfo(s"Hit@1: $hit1")
+    logInfo(s"Hit@5: $hit5")
 
     predictor.toPipeline
   }
