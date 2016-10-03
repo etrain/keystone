@@ -67,42 +67,64 @@ object Youtube8MVideoRandomFeatures extends Serializable with Logging {
     logInfo(s"Size of testX: ${testX.count}, testy: ${testy.count}")
     val testActuals = testData.map(_.labels).cache()
 
-    val featurizer = Pipeline.gather {
-      Seq.fill(numCosineBatches) {
-        if (conf.rfType == Distributions.Cauchy) {
-          // TODO: Once https://github.com/scalanlp/breeze/issues/398 is released,
-          // use a RandBasis for cauchy
-          CosineRandomFeatures(
-            Youtube8MVideoLoader.NUM_FEATURES,
-            numCosineFeatures,
-            conf.gamma,
-            new CauchyDistribution(0, 1),
-            randomSource.uniform).toPipeline
-        } else {
-          CosineRandomFeatures(
-            Youtube8MVideoLoader.NUM_FEATURES,
-            numCosineFeatures,
-            conf.gamma,
-            randomSource.gaussian,
-            randomSource.uniform).toPipeline
-        }
+    val batchFeaturizer = (0 until numCosineBatches).map { batch =>
+      if (conf.rfType == Distributions.Cauchy) {
+        // TODO: Once https://github.com/scalanlp/breeze/issues/398 is released,
+        // use a RandBasis for cauchy
+        CosineRandomFeatures(
+          Youtube8MVideoLoader.NUM_FEATURES,
+          numCosineFeatures,
+          conf.gamma,
+          new CauchyDistribution(0, 1),
+          randomSource.uniform).toPipeline
+      } else {
+        CosineRandomFeatures(
+          Youtube8MVideoLoader.NUM_FEATURES,
+          numCosineFeatures,
+          conf.gamma,
+          randomSource.gaussian,
+          randomSource.uniform).toPipeline
       }
-    } andThen VectorCombiner()
+    }
 
-    val predictor = featurizer andThen (new BlockLeastSquaresEstimator(numCosineFeatures, conf.numEpochs, conf.lambda),
-      trainX, trainy)
 
-    val predictions = predictor(testX).get.cache()
 
-    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
+    val trainingBatches = batchFeaturizer.map { x =>
+      x.apply(trainX).get.cache().setName("Training Block")
+    }
+
+    trainingBatches.foreach {
+      _.count()
+    }
+    logInfo(s"Successfully featurized $numCosineBatches blocks.")
+
+    val solveStartTime = System.currentTimeMillis()
+    val model = new BlockLeastSquaresEstimator(
+      numCosineFeatures, conf.numEpochs, conf.lambda).fit(trainingBatches, trainy)
+    val solveEndTime  = System.currentTimeMillis()
+
+    logInfo(s"PIPELINE TIMING: Finished Solve in ${solveEndTime - solveStartTime} ms")
+    logInfo("PIPELINE TIMING: Finished training the classifier")
+
+    logInfo("PIPELINE TIMING: Evaluating the classifier")
+
+    val loss = BlockLeastSquaresEstimator.computeCost(trainingBatches, trainy, conf.lambda, model.xs, model.bOpt)
+    logInfo(s"PIPELINE TIMING: Least squares loss was $loss")
+
+
+    val testFeatures = batchFeaturizer.map(x => x.apply(testX).get.cache().setName("Test block"))
+    val predictions = model.apply(testFeatures).cache()
     val hit1 = hitAtK(testActuals, predictions, 1)
     val hit5 = hitAtK(testActuals, predictions, 5)
-    logInfo(s"TEST APs ${conf.lambda} are: ${map.toArray.mkString(",")}")
-    logInfo(s"TEST MAP ${conf.lambda} is: ${mean(map)}")
     logInfo(s"Hit@1: $hit1")
     logInfo(s"Hit@5: $hit5")
+    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
 
-    predictor.toPipeline
+    logInfo(s"TEST APs ${conf.lambda} are: ${map.toArray.mkString(",")}")
+    logInfo(s"TEST MAP ${conf.lambda} is: ${mean(map)}")
+
+
+    Pipeline.gather(batchFeaturizer) andThen VectorCombiner() andThen model
   }
 
   case class RandomFeaturesConfig(
