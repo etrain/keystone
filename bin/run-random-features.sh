@@ -1,7 +1,12 @@
 #!/bin/bash
 
 export SPARK_HOME=/root/spark 
-KEYSTONE_MEM=80g 
+export KEYSTONE_MEM=80g 
+
+NUM_SLAVES=`wc -l $SPARK_HOME/conf/slaves | cut -d" " -f1`
+NUM_PARTS=$((8 * $NUM_SLAVES))
+echo $NUM_PARTS
+echo
 
 bin/run-pipeline.sh pipelines.video.youtube8m.Youtube8MVideoRandomFeatures \
     --trainLocation /youtube8m/video/train/ \
@@ -9,4 +14,4 @@ bin/run-pipeline.sh pipelines.video.youtube8m.Youtube8MVideoRandomFeatures \
     --checkpointDir /mnt/checkpoints \
     --numCosines 2 \
     --numEpochs 1 \
-    --numParts 384 > randomfeatures.20blocks.txt
+    --numParts $NUM_PARTS > randomfeatures.20blocks.txt
