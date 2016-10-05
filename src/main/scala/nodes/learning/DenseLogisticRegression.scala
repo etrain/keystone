@@ -189,7 +189,10 @@ class DenseLogisticRegressionEstimator(numFeatures: Int,
     val labelScaler = new StandardScaler(normalizeStdDev = false).fit(labels)
     val featureScaler = new StandardScaler(normalizeStdDev = false).fit(in)
 
-    val model = SoftMaxLBFGS.runLBFGS(in, labels, numCorrections, convergenceTol, numEpochs, lambda)
+    val inScaled = featureScaler.apply(in)
+    val labelsScaled = labelScaler.apply(labels)
+
+    val model = SoftMaxLBFGS.runLBFGS(inScaled, labelsScaled, numCorrections, convergenceTol, numEpochs, lambda)
 
     new LinearMapper(model, Some(labelScaler.mean), Some(featureScaler))
   }
