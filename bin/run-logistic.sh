@@ -16,5 +16,6 @@ bin/run-pipeline.sh pipelines.video.youtube8m.Youtube8MVideoRandomFeatures \
     --trainLocation /youtube8m/video/train/ \
     --testLocation /youtube8m/video/validate/ \
     --numIters $NUM_ITER \
-    --lambda $LAMBDA \ 
+    --lambda $LAMBDA \
+    --method dense \
     --numParts $NUM_PARTS > logisticRegression.$LAMBDA.$NUM_ITER.$DATE.txt
