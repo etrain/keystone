@@ -90,13 +90,15 @@ object Youtube8MVideoLogistic extends Serializable with Logging {
 
     logInfo(s"Size of prediction vector: ${predictions.first.length}")
 
-    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
     val hit1 = hitAtK(testActuals, predictions, 1)
+    logInfo(s"Hit@1: $hit1")
     val hit5 = hitAtK(testActuals, predictions, 5)
+    logInfo(s"Hit@5: $hit5")
+
+    val map = MeanAveragePrecisionEvaluator(testActuals, predictions, Youtube8MVideoLoader.NUM_CLASSES)
     logInfo(s"TEST APs ${conf.lambda} are: ${map.toArray.mkString(",")}")
     logInfo(s"TEST MAP ${conf.lambda} is: ${mean(map)}")
-    logInfo(s"Hit@1: $hit1")
-    logInfo(s"Hit@5: $hit5")
+
 
     predictor.toPipeline
   }
