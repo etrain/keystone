@@ -1,6 +1,7 @@
 package nodes.learning
 
 import pipelines.Logging
+import nodes.stats.{StandardScalerModel, StandardScaler}
 import utils.MatrixUtils
 import workflow.{LabelEstimator, Estimator}
 
@@ -61,32 +62,6 @@ class SoftMaxGradient extends Serializable {
 
 }
 
-class SoftMaxLBFGS(
-    val blockSize: Int,
-    val numCorrections: Int  = 10,
-    val convergenceTol: Double = 1e-8,
-    val numEpochs: Int = 5,
-    val lambda: Double) extends Serializable {
-
-  def fit(
-    trainingFeatures: RDD[DenseVector[Double]],
-    trainingLabels: RDD[DenseVector[Double]],
-    intermediateCallback: Option[(Seq[DenseMatrix[Double]], DenseVector[Double], Int) => (Double, Double)])
-    : (Seq[DenseMatrix[Double]], DenseVector[Double]) = {
-
-    SoftMaxLBFGS.runLBFGS(
-      blockSize,
-      trainingFeatures,
-      trainingLabels,
-      numCorrections,
-      convergenceTol,
-      numEpochs,
-      lambda,
-      intermediateCallback)
-  }
-
-}
-
 object SoftMaxLBFGS {
   /**
   * Run Limited-memory BFGS (L-BFGS) in parallel.
@@ -94,15 +69,12 @@ object SoftMaxLBFGS {
   * spark map-reduce in each iteration.
   */
   def runLBFGS(
-    blockSize: Int,
     trainingFeatures: RDD[DenseVector[Double]],
     trainingLabels: RDD[DenseVector[Double]],
     numCorrections: Int,
     convergenceTol: Double,
     numEpochs: Int,
-    lambda: Double,
-    intermediateCallback: Option[(Seq[DenseMatrix[Double]], DenseVector[Double], Int) => (Double, Double)] = None)
-    : (Seq[DenseMatrix[Double]], DenseVector[Double]) = {
+    lambda: Double): DenseMatrix[Double] = {
 
     val sc = trainingLabels.context
 
@@ -112,39 +84,15 @@ object SoftMaxLBFGS {
     val numFeatures = trainingFeatures.first.length
     val numClasses = trainingLabels.first.length
 
-    val featureMean = computePopFeatureMean(trainingFeatures, nTrain, numFeatures)
-
-    // Pay some extra cost and compute featuresMat from DISK
-    // This is useful because we can avoid doing rowsToMatrix every iteration
-    trainingFeatures.unpersist()
-    val featuresMat = zeroMeanFeatures(trainingLabels.zip(trainingFeatures).mapPartitions { part =>
-      Iterator.single(MatrixUtils.rowsToMatrix(part.map(_._2)))
-    }, featureMean).cache()
-    featuresMat.count()
+    // TODO(shivaram): Should we make this caching optional ?
+    val featuresMat = trainingFeatures.mapPartitions { part =>
+      Iterator.single(MatrixUtils.rowsToMatrix(part))
+    }.cache()
 
     val labelsMat = trainingLabels.mapPartitions { part =>
       Iterator.single(MatrixUtils.rowsToMatrix(part))
-    }
-    // val labelMean = labelsMat.map { mat =>
-    //   sum(mat(::, *)).toDenseVector
-    // }.reduce( (a: DenseVector[Double], b: DenseVector[Double]) => a += b ) /= nTrain.toDouble
-    // val labelsZM = zeroMeanLabels(labelsMat, labelMean)
-    // labelsZM.cache()
-    // labelsZM.count
+    }.cache()
 
-    // import lbfgs._
-    val numBlocks = math.ceil(numFeatures.toDouble / blockSize).toInt
-    var modelSplit= (0 until numBlocks).map { block =>
-      // NOTE: This assumes uniform block sizes here.
-      // W check the number of columns in the first pass and fix it if reqd.
-      if (block == numBlocks - 1) {
-        DenseMatrix.zeros[Double](numFeatures - (blockSize * (numBlocks - 1)), numClasses)
-      } else {
-        DenseMatrix.zeros[Double](blockSize, numClasses)
-      }
-    }.toArray
-    var intercept = DenseVector.zeros[Double](numClasses)
-    
     // matrix collapsed into a vector as breeze can't do
     // InnerProducts with matrices ?
     var model = DenseVector.zeros[Double](numFeatures * numClasses)
@@ -157,13 +105,10 @@ object SoftMaxLBFGS {
 
     // Run it once to initialize etc.
     var epoch = 0
-
     while (states.hasNext) {
       val epochBegin = System.nanoTime
 
       val state = states.next()
-
-      var epochTime = 0L
 
       val primalObjective = state.value
       lossHistory += primalObjective
@@ -179,30 +124,19 @@ object SoftMaxLBFGS {
       println("model is " + modelMat.rows + " x " + modelMat.cols)
       println("model 2-norm is " + norm(model))
 
-      val intercept = -1.0 * modelMat.t * featureMean
-
-      //need to split model here because intermediatecall back requires Seq
-      (0 until numBlocks).map { blockNum =>
-        val end = math.min(numFeatures, (blockNum + 1) * blockSize)
-        modelSplit(blockNum) := modelMat(blockNum*blockSize until end, ::)
-      }
-      
-      epochTime = System.nanoTime - epochBegin
+      val epochTime = System.nanoTime - epochBegin
       println("EPOCH_" + epoch + "_time: " + epochTime)
       println("EPOCH_" + epoch + "_primalObjective: " + primalObjective)
-      intermediateCallback.foreach { fn =>
-        fn(modelSplit, intercept, epoch)
-      }
       epoch = epoch + 1
     }
-      
-    (modelSplit, intercept)
-  } //End of runLBFGS
+    val modelMat = model.asDenseMatrix.reshape(numFeatures, numClasses)
+    modelMat
+  } // End of runLBFGS
 
   /**
-  * CostFun implements Breeze's DiffFunction[T], which returns the loss and gradient
-  * at a particular point. It's used in Breeze's convex optimization routines.
-  */
+   * CostFun implements Breeze's DiffFunction[T], which returns the loss and gradient
+   * at a particular point. It's used in Breeze's convex optimization routines.
+   */
   private class CostFun(
     dataMat: RDD[DenseMatrix[Double]],
     labelsMat: RDD[DenseMatrix[Double]],
@@ -242,34 +176,6 @@ object SoftMaxLBFGS {
       (regularizedLoss, regularizedGrad.toDenseVector)
     }
   }
-
-  /** 
-   * Computes the mean of each colum of the feature matrix
-   * Returns a d-dimensional vector representing the feature mean
-   */
-  def computePopFeatureMean(
-    features: RDD[DenseVector[Double]],
-    nTrain: Long,
-    nFeatures: Int): DenseVector[Double] = {
-
-    // To compute the column means, compute the colSum in each partition, add it
-    // up and then divide by number of rows.
-    features.fold(DenseVector.zeros[Double](nFeatures))((a: DenseVector[Double], b: DenseVector[Double]) =>
-      a += b
-    ) /= nTrain.toDouble
-  }
-
-  def zeroMeanFeatures(
-      featuresMat: RDD[DenseMatrix[Double]],
-      featureMean: DenseVector[Double]): RDD[DenseMatrix[Double]] = {
-    featuresMat.map(x => x(*, ::) - featureMean)
-  }
-  
-  def zeroMeanLabels(
-      labelsMat: RDD[DenseMatrix[Double]],
-      labelMean: DenseVector[Double]): RDD[DenseMatrix[Double]] = {
-    labelsMat.map(x => x(*,::)-labelMean)
-  }
 }
 
 class DenseLogisticRegressionEstimator(numFeatures: Int,
@@ -280,10 +186,12 @@ class DenseLogisticRegressionEstimator(numFeatures: Int,
 
   def fit(in: RDD[DenseVector[Double]], labels: RDD[DenseVector[Double]]): LinearMapper[DenseVector[Double]] = {
 
-    val (x, b) = SoftMaxLBFGS.runLBFGS(numFeatures, in, labels, numCorrections, convergenceTol, numEpochs, lambda, None)
+    val labelScaler = new StandardScaler(normalizeStdDev = false).fit(labels)
+    val featureScaler = new StandardScaler(normalizeStdDev = false).fit(in)
 
-    logWarning("We are assuming that the input features are one block. Fix this code before running on more features")
-    new LinearMapper(x.head, Some(b))
+    val model = SoftMaxLBFGS.runLBFGS(in, labels, numCorrections, convergenceTol, numEpochs, lambda)
+
+    new LinearMapper(model, Some(labelScaler.mean), Some(featureScaler))
   }
 
 }
