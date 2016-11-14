@@ -37,7 +37,7 @@ abstract class Estimator[A, B] extends EstimatorOperator {
     val (estGraphWithNewSource, sourceId) = estGraph.addSource()
 
     // Adding a delegating transformer that depends on the source and the label estimator,
-    val (almostFinalGraph, delegatingId) = estGraphWithNewSource.addNode(new DelegatingOperator, Seq(estId, sourceId))
+    val (almostFinalGraph, delegatingId) = estGraphWithNewSource.addNode(new DelegatingOperator(this.toString), Seq(estId, sourceId))
 
     // And finally adding a sink that connects to the delegating transformer.
     val (newGraph, sinkId) = almostFinalGraph.addSink(delegatingId)

@@ -1,11 +1,12 @@
 package workflow.tuning
 
 import org.apache.spark.rdd.RDD
+import pipelines.Logging
 import workflow._
 
 import scala.reflect.ClassTag
 
-object PipelineTuning {
+object PipelineTuning extends Logging {
   /**
     * A method used for tuning between several pipeline options on validation data.
     *
@@ -95,7 +96,7 @@ object PipelineTuning {
     // Next add a gather transformer with all of the branches' endpoints as dependencies,
     // and add a new sink on the delegating transformer.
     val (graphWithDelegatingTransformer, delegatingTransformerNode) =
-      graphWithEmptyBranches.addNode(new DelegatingOperator(), emptyBranchSinks)
+      graphWithEmptyBranches.addNode(new DelegatingOperator("Tuning.Gather"), emptyBranchSinks)
 
     val (delegatingGraph, delegatingSink) =
       graphWithDelegatingTransformer.addSink(delegatingTransformerNode)
@@ -112,8 +113,15 @@ object PipelineTuning {
       delegatingTransformerNode,
       newSelectorNodes(selectorNode) +: newGraph.getDependencies(delegatingTransformerNode))
 
+    //Optimize the pipeline for common subexpression elimination, node level opt, and
+    logInfo(s"Starting optimization of big pipeline.")
+    val res2 = PipelineEnv.getOrCreate.getOptimizer.execute(res, Map())._1
+    logInfo(s"Pipeline optimized.")
+    logInfo(s"Before: ${res.nodes.size}, after: ${res2.nodes.size}")
+
     // Finally, construct & return the new "tuning" pipeline
-    val executor = new GraphExecutor(res)
+    val executor = new GraphExecutor(res2)
+
     new Pipeline[A, B](executor, source, delegatingSink)
   }
 
@@ -121,6 +129,7 @@ object PipelineTuning {
   /**
     * This method eagerly picks among the best pipelines it can find. It treats these pipelines independently
     * and doesn't take into account repeated work, etc.
+ *
     * @param pipes
     * @param data
     * @param labels

@@ -71,7 +71,13 @@ object SearcherUtils {
 
   def randRange(min: Double, max: Double) = min + (max - min)*rand.nextDouble()
 
-  def randRangeLog(min: Double, max: Double) = math.exp(randRange(math.log(min), math.log(max)))
+  def randRangeLog(min: Double, max: Double) = {
+    assert(min >= 0.0, "Lower bound must be >=0")
+    val lb = if (min == 0.0) 0.0 else math.log(min)
+    val ub = math.log(max)
+
+    math.exp(randRange(lb, ub))
+  }
   def randRangeInt(min: Int, max: Int): Int = min + rand.nextInt(max-min)
 
   def linSpace(from: Double, until: Double, points: Int) = from to until by (until-from)/(points.toDouble-1)

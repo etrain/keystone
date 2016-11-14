@@ -133,7 +133,7 @@ private[workflow] abstract class EstimatorOperator extends Operator with Seriali
  * The operator is lazy, meaning that nothing will be executed until the
  * value of the [[Expression]] is accessed using `Output.get`.
  */
-private[workflow] class DelegatingOperator extends Operator with Serializable {
+private[workflow] case class DelegatingOperator(parentName: String) extends Operator with Serializable {
   override def execute(deps: Seq[Expression]): Expression = {
     require(deps.nonEmpty, "DelegatingOperator dependencies may not be empty")
     require(deps.tail.nonEmpty, "Transformer dependencies may not be empty")
@@ -161,6 +161,7 @@ private[workflow] class DelegatingOperator extends Operator with Serializable {
       // meaning singleTransform will only be called when the output is used
       new DatumExpression(transformer.get.singleTransform(depsAsDatum))
     }
+
   }
 }
 
@@ -170,7 +171,7 @@ private[workflow] class DelegatingOperator extends Operator with Serializable {
  *
  * @param expression The expression to always output
  */
-private[workflow] class ExpressionOperator(expression: Expression) extends Operator {
+private[workflow] case class ExpressionOperator(expression: Expression) extends Operator {
   override def execute(deps: Seq[Expression]): Expression = {
     require(deps.isEmpty, "ExpressionOperator does not take any inputs")
     expression

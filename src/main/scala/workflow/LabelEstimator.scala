@@ -74,7 +74,7 @@ abstract class LabelEstimator[A, B, L] extends EstimatorOperator {
     // Adding a delegating transformer that depends on the source and the label estimator,
     // And finally adding a sink that connects to the delegating transformer.
     val (estGraphWithNewSource, sourceId) = estimatorWithInputs.addSource()
-    val (almostFinalGraph, delegatingId) = estGraphWithNewSource.addNode(new DelegatingOperator, Seq(estId, sourceId))
+    val (almostFinalGraph, delegatingId) = estGraphWithNewSource.addNode(new DelegatingOperator(this.toString), Seq(estId, sourceId))
     val (newGraph, sinkId) = almostFinalGraph.addSink(delegatingId)
 
     // Finally, we construct a new pipeline w/ the new graph & new state.

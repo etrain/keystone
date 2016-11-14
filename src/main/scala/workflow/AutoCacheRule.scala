@@ -6,8 +6,14 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.SparkUtilWrapper
 import pipelines.Logging
+import utils.ObjectUtils
+import sys.process._
 
 import workflow.AutoCacheRule.{AggressiveCache, CachingStrategy, GreedyCache}
+import workflow.tuning.DAGWriter
+
+import scala.util.Random
+import scala.tools.nsc.io
 
 case class Profile(ns: Long, rddMem: Long, driverMem: Long) {
   def +(p: Profile) = Profile(this.ns + p.ns, this.rddMem + p.rddMem, this.driverMem + p.driverMem)
@@ -203,6 +209,7 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
           }).map(rdd => new DatasetExpression(rdd))
 
           // Profile sample timing
+          logInfo(s"Sampling dataset $node at $partitionScale")
           val start = System.nanoTime()
           // Construct and cache a sample
           val sample = transformer.batchTransform(sampledInputs).cache()
@@ -231,6 +238,7 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
         }
 
         // Profile sample timing
+        logInfo(s"Profiling datum $node")
         val start = System.nanoTime()
         val datum = transformer.singleTransform(inputs)
         val duration = System.nanoTime() - start
@@ -636,8 +644,7 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
     }
   }
 
-  def getProfiles[A,B](pipe: Pipeline[A,B], config: GreedyCache): Map[NodeId, Profile] = {
-    val plan = pipe.executor.graph
+  def getProfiles[A,B](plan: Graph, config: GreedyCache): Map[NodeId, Profile] = {
     val linearization = AnalysisUtils.linearize(plan)
 
     val descendantsOfSources = getDescendantsOfSources(plan)
@@ -648,13 +655,37 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
   def getCacheHitRates[A,B](pipe: Pipeline[A,B], sizesMb: Seq[Int] = Seq(10,50,100,500,1000,5000,10000,50000,100000)): Map[(String,Int),Long] = {
     val cacheStrats: Map[String,(Int, Map[GraphId,Long]) => CacheCalculator] = Map("lru" -> LRUCache.apply, "opt" -> OPTCache.apply)
 
-    val profiles = getProfiles(pipe, GreedyCache())
+    val profiles = getProfiles(pipe.executor.graph, GreedyCache())
+
     val profs2 = profiles.map(x => (x._1.asInstanceOf[GraphId], x._2))
+    ObjectUtils.writeFile(DAGWriter.toJson(profiles.map{case (x,y) => (x.id.toInt,y)}), s"/tmp/profiles.${Random.nextInt()}.json")
     val z = for(
       s <- sizesMb;
       c <- cacheStrats.keys.toSeq
     ) yield ((c,s), CacheUtils.calculatePipelineHitRate(pipe.executor, s, profs2, cacheStrats(c)))
     z.toMap
+  }
+
+  def makePdf(plan: Graph, outfile: String) = {
+    io.File(s"$outfile.dot").writeAll(plan.toDOTString)
+    s"dot -Tpdf -o${outfile}.pdf $outfile.dot" !
+  }
+
+  def profileExtrapolateAndWrite[A,B](pipeds: PipelineDataset[A], fileName: String, profile: Boolean): Unit = {
+    val plan = pipeds.executor.graph
+    val (optPlan, _) = PipelineEnv.getOrCreate.getOptimizer.execute(plan, Map())
+    logInfo(s"Plan size before ${plan.nodes.size} after ${optPlan.nodes.size}")
+    makePdf(optPlan, s"$fileName")
+
+    val profiles = if (profile) {
+      getProfiles(optPlan, GreedyCache())
+    } else {
+      Map[NodeId,Profile]()
+    }
+
+    val graphJson = DAGWriter.toJson(optPlan, profiles, getNodeWeights(optPlan))
+
+    ObjectUtils.writeFile(graphJson, fileName)
   }
 }
 
