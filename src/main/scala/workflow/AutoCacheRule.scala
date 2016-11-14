@@ -675,6 +675,7 @@ class AutoCacheRule(cachingMode: CachingStrategy) extends Rule with Logging {
     val plan = pipeds.executor.graph
     val (optPlan, _) = PipelineEnv.getOrCreate.getOptimizer.execute(plan, Map())
     logInfo(s"Plan size before ${plan.nodes.size} after ${optPlan.nodes.size}")
+    makePdf(plan, s"$fileName.old")
     makePdf(optPlan, s"$fileName")
 
     val profiles = if (profile) {

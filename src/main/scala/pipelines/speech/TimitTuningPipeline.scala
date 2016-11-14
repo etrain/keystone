@@ -4,7 +4,7 @@ import breeze.linalg.{DenseVector, SparseVector}
 import breeze.stats.distributions.{ThreadLocalRandomGenerator, RandBasis, CauchyDistribution}
 import evaluation.MulticlassClassifierEvaluator
 import loaders.{TimitFeaturesDataLoader, NewsgroupsDataLoader}
-import nodes.learning.{LeastSquaresEstimator, NaiveBayesEstimator}
+import nodes.learning.{LeastSquaresDenseGradient, DenseLBFGSwithL2, LeastSquaresEstimator, NaiveBayesEstimator}
 import nodes.nlp._
 import nodes.stats.{CosineRandomFeatures, TermFrequency}
 import nodes.util.{ClassLabelIndicatorsFromIntLabels, CommonSparseFeatures, MaxClassifier}
@@ -57,7 +57,7 @@ object TimitTuningPipeline extends Logging {
           randomSource.uniform)},
       SeqParameter("typeAndGamma", Seq(IntParameter("type", 0, 1), IntParameter("gammaPow",conf.gammaMinPow, conf.gammaMaxPow)))) andThen
       LabelEstimatorP("LinearSolver",
-        {x:Double => new LeastSquaresEstimator[DenseVector[Double]](x)},
+        {x:Double => new DenseLBFGSwithL2[DenseVector[Double]](new LeastSquaresDenseGradient, regParam = x, numIterations = 20)},
         ContinuousParameter("lambda", conf.lambdaMin, conf.lambdaMax, scale=Scale.Log),
         trainData,
         ClassLabelIndicatorsFromIntLabels(numClasses).apply(labels))
