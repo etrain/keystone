@@ -20,13 +20,14 @@ object AmazonReviewsTuningPipeline extends Logging {
 
   def run(sc: SparkContext, conf: AmazonReviewsTuningConfig): Unit = {
     val tf = TermFrequency()
-    val ac = Transformer[Int,Boolean]((x: Int) => x > 0)
+    val ac = Transformer[Double,Boolean]((x: Double) => x > 0)
+
 
     val amazonTrainData = AmazonReviewsDataLoader(sc, conf.trainLocation, conf.threshold).labeledData
     val trainData = LabeledData(amazonTrainData.repartition(conf.numParts).cache())
 
     val training = trainData.data
-    val labels = ac(trainData.labels)
+    val labels = trainData.labels.map(_ > 0)
 
 
     // Build the classifier estimator
