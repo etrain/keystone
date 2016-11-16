@@ -16,6 +16,6 @@ DATE=`date +%Y%m%d.%H%M%S`
 KEYSTONE_MEM=4g ./bin/run-pipeline.sh \
   pipelines.text.NewsgroupsTuningPipeline \
   --trainLocation $TRAINPATH \
-  --numConfigs 100 \
+  --numConfigs 10 \
   --profile false \
   --testLocation $TESTPATH > $LOGDIR/newsgroups.$DATE.log

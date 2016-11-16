@@ -58,7 +58,7 @@ object AmazonReviewsPipeline extends Logging {
     opt[Double]("threshold") action { (x,c) => c.copy(threshold=x)}
     opt[Int]("nGrams") action { (x,c) => c.copy(nGrams=x) }
     opt[Int]("commonFeatures") action { (x,c) => c.copy(commonFeatures=x) }
-    opt[Int]("numIters") action { (x,c) => c.copy(numParts=x) }
+    opt[Int]("numIters") action { (x,c) => c.copy(numIters=x) }
     opt[Int]("numParts") action { (x,c) => c.copy(numParts=x) }
   }.parse(args, AmazonReviewsConfig()).get
 

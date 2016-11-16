@@ -46,11 +46,12 @@ object TimitTuningPipeline extends Logging {
 
 
     val numCosineFeatures = 16384
-    val numClasses = TimitFeaturesDataLoader.timitDimension
+    val numFeatures = TimitFeaturesDataLoader.timitDimension
+    val numClasses = TimitFeaturesDataLoader.numClasses
 
     val pipeSpace = TransformerP("RandomFeatures",
         {x:Seq[(String,Any)] => CosineRandomFeatures(
-          numClasses,
+          numFeatures,
           numCosineFeatures,
           math.pow(5.5, x(1)._2.asInstanceOf[Int]),
           if(x(0)._2.asInstanceOf[Int] == 1) cauchy else randomSource.gaussian,
